@@ -65,6 +65,7 @@ def evaluate(decision: ProcurementDecision, expectations: dict) -> list[str]:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('--architecture', choices=['single','staged'], default='single')
+    parser.add_argument('--mode', choices=['auto','demo','real'], default='auto')
     args = parser.parse_args()
 
     cases = json.loads((ROOT/'evals'/'public_cases.json').read_text(encoding='utf-8'))
@@ -74,7 +75,7 @@ def main() -> None:
     for case in cases:
         start = time.perf_counter()
         try:
-            raw = handle_request(case['request_id'], architecture=args.architecture)
+            raw = handle_request(case['request_id'], architecture=args.architecture, mode=args.mode)
             decision = raw if isinstance(raw, ProcurementDecision) else ProcurementDecision.model_validate(raw)
             latency_ms = (time.perf_counter() - start) * 1000
             failures = evaluate(decision, case['expectations'])

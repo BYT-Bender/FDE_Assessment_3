@@ -14,6 +14,12 @@ class RunTelemetry(BaseModel):
     llm_calls: int | None = None
     tool_calls: int | None = None
     tool_names: list[str] = Field(default_factory=list)
+    model_tool_calls: int | None = None
+    tool_call_names: list[str] = Field(default_factory=list)
+    diagnostics: list[dict[str, object]] = Field(default_factory=list)
+    execution_mode: Literal["demo", "real"] = "demo"
+    model: str | None = None
+    agents: list[str] = Field(default_factory=list)
 
 
 class ProcurementDecision(BaseModel):
@@ -26,6 +32,7 @@ class ProcurementDecision(BaseModel):
     next_step: str
     human_review_required: bool = True
     telemetry: RunTelemetry | None = None
+    model_config = {"extra": "forbid"}
 
 
 Architecture = Literal["single", "staged"]

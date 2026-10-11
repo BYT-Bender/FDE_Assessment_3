@@ -117,19 +117,32 @@ def check_contract_and_evals() -> None:
     ok(f"Output contract + {len(cases)} public evaluation cases are valid")
 
 
-def check_mock_api() -> None:
-    from fastapi.testclient import TestClient
-    from mock_api.app import app
+def check_secret_hygiene() -> None:
+    ignore = (ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
+    if ".env" not in ignore:
+        fail(".env must be excluded by .gitignore")
+    example = (ROOT / ".env.example").read_text(encoding="utf-8")
+    if "GEMINI_API_KEY=" not in example or "your-real-key" in example.casefold():
+        fail(".env.example must contain only a blank API-key placeholder")
+    ok("Local secrets are excluded by .gitignore; Gemini example configuration contains placeholders only")
 
-    client = TestClient(app)
-    health = client.get("/health")
-    if health.status_code != 200 or health.json().get("status") != "ok":
+
+def check_mock_api() -> None:
+    from fastapi import HTTPException
+    from mock_api.app import health as health_endpoint, vendor_risk
+    health = health_endpoint()
+    known = vendor_risk("BrandBoard")
+    try:
+        vendor_risk("NimbusAI")
+    except HTTPException as exc:
+        outage_status = exc.status_code
+    else:
+        outage_status = 200
+    if health.get("status") != "ok":
         fail("Mock API health endpoint failed")
-    known = client.get("/vendor-risk/BrandBoard")
-    if known.status_code != 200 or known.json().get("security_review_status") != "not_completed":
+    if known.get("security_review_status") != "not_completed":
         fail("Mock API known-vendor check failed")
-    outage = client.get("/vendor-risk/NimbusAI")
-    if outage.status_code != 503:
+    if outage_status != 503:
         fail("Mock API simulated-outage check failed")
     ok("Mock vendor-risk API checks passed")
 
@@ -140,9 +153,10 @@ def main() -> None:
     check_imports()
     check_data()
     check_contract_and_evals()
+    check_secret_hygiene()
     check_mock_api()
     print("\nPRE-FLIGHT PASSED")
-    print("Next: copy .env.example to .env, add your model credentials, then run: python run_local.py")
+    print("Next: fill GEMINI_API_KEY in the local .env for real LLM mode (or use labelled demo mode), then run: python run_local.py")
 
 
 if __name__ == "__main__":
